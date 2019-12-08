@@ -93,8 +93,7 @@ char *wordprocess(char *token)
     int len;
     int inword;
     char *word;
-    char *rez;
-
+    
     len = strlen(token);
     word = (char *)malloc(len + 1);
     if (word == NULL)
