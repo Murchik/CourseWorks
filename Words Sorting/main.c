@@ -4,25 +4,21 @@
 #include <ctype.h>
 #include <locale.h>
 
-#define MAXWORDS 5000
+#define MAXWORDS 500
 #define MAXLEN 1024
-
-struct word
-{
-    char *ch; // Указатель на слово
-    int num;  // Сколько раз встречается в тексте
-};
 
 char *wordptr[MAXWORDS];
 
 int readwords(const char *fileName, char *wordptr[], int nlines);
-void writelines(char *wordptr[], int nlines);
-void sort(char *v[], int left, int right);
-void swap(char *v[], int i, int j);
 char *wordprocess(char *word);
+int comp(const char *word1, const char *word2);
+void swap(char *v[], int i, int j);
+void sort(char *v[], int left, int right);
+void writelines(char *wordptr[], int nlines);
 
 int main()
 {
+    setlocale(LC_ALL, "RUS");
     int nwords;
 
     if ((nwords = readwords("file.txt", wordptr, MAXWORDS)) >= 0)
@@ -108,6 +104,35 @@ void writelines(char *wordptr[], int nlines)
         printf("%s\n", wordptr[i]);
 }
 
+int comp(const char *word1, const char *word2)
+{
+    int ch1, ch2;
+    int i;
+
+    for (i = 0; word1[i] != '\0' || word2[i] != '\0'; i++)
+    {
+        if (isupper(word1[i]))
+            ch1 = word1[i] - 'A';
+        else if (islower(word1[i]))
+            ch1 = word1[i] - 'a';
+        else
+            ch1 = word1[i];
+
+        if (isupper(word2[i]))
+            ch2 = word2[i] - 'A';
+        else if (islower(word2[i]))
+            ch2 = word2[i] - 'a';
+        else
+            ch2 = word2[i];
+
+        if (ch1 > ch2)
+            return 1;
+        else if (ch1 < ch2)
+            return -1;
+    }
+    return 0;
+}
+
 void sort(char *v[], int left, int right)
 {
     int i, last;
@@ -117,8 +142,10 @@ void sort(char *v[], int left, int right)
     swap(v, left, (left + right) / 2);
     last = left;
     for (i = left + 1; i <= right; ++i)
-        if (strcmp(v[i], v[left]) < 0)
+    {
+        if (comp(v[i], v[left]) < 0)
             swap(v, ++last, i);
+    }
     swap(v, left, last);
     sort(v, left, last - 1);
     sort(v, last + 1, right);
