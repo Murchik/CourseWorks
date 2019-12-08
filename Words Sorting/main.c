@@ -24,7 +24,7 @@ int main()
     int nwords;
     int lenword;
 
-    printf("Ââåäèòå äëèíó ñëîâ: ");
+    printf("Ð’Ð²ÐµÐ´Ð¸Ñ‚Ðµ Ð´Ð»Ð¸Ð½Ñƒ ÑÐ»Ð¾Ð²: ");
     lenword = readlen();
     if (lenword > 0)
         if ((nwords = readwords("file.txt", wordptr, lenword, MAXWORDS)) > 0)
