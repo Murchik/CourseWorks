@@ -4,38 +4,58 @@
 #include <ctype.h>
 #include <locale.h>
 
-#define MAXWORDS 500
+#define MAXWORDS 5000
 #define MAXLEN 1024
 
 char *wordptr[MAXWORDS];
 
-int readwords(const char *fileName, char *wordptr[], int nlines);
+int readlen();
+int readwords(const char *fileName, char *wordptr[], int len, int nlines);
 char *wordprocess(char *word);
 int comp(const char *word1, const char *word2);
 void swap(char *v[], int i, int j);
 void sort(char *v[], int left, int right);
 void writelines(char *wordptr[], int nlines);
+void wordfree(char **wordptr, int nwords);
 
 int main()
 {
     setlocale(LC_ALL, "RUS");
     int nwords;
+    int lenword;
 
-    if ((nwords = readwords("file.txt", wordptr, MAXWORDS)) >= 0)
-    {
-        sort(wordptr, 0, nwords - 1);
-        writelines(wordptr, nwords);
-    }
+    printf("¬ведите длину слов: ");
+    lenword = readlen();
+    if (lenword > 0)
+        if ((nwords = readwords("file.txt", wordptr, lenword, MAXWORDS)) > 0)
+        {
+            sort(wordptr, 0, nwords - 1);
+            writelines(wordptr, nwords);
+            wordfree(wordptr, nwords);
+        }
+        else
+            printf("error: no matching words found\n");
     else
-        printf("error: input too big to sort\n");
-
+        printf("error: invalid length\n");
     return 0;
 }
 
-int readwords(const char *fileName, char *wordptr[], int maxwords)
+int readlen()
+{
+    int n;
+
+    scanf("%i", &n);
+    if (!(n > 0))
+        return -1;
+    else if (n > MAXLEN)
+        return -2;
+    return n;
+}
+
+int readwords(const char *fileName, char *wordptr[], int len, int maxwords)
 {
     FILE *ptrFile;
-    int len, nwords;
+    int nwords;
     char *word, *token, line[MAXLEN];
 
     if ((ptrFile = fopen(fileName, "rt")) == NULL)
@@ -52,6 +72,11 @@ int readwords(const char *fileName, char *wordptr[], int maxwords)
             else
             {
                 word = wordprocess(token);
+                if (strlen(word) != len)
+                {
+                    free(word);
+                    word = NULL;
+                }
                 if (word != NULL)
                     wordptr[nwords++] = word;
             }
@@ -68,9 +93,10 @@ char *wordprocess(char *token)
     int len;
     int inword;
     char *word;
+    char *rez;
 
     len = strlen(token);
-    word = (char *)malloc(len);
+    word = (char *)malloc(len + 1);
     if (word == NULL)
         return NULL;
     strcpy(word, token);
@@ -91,8 +117,6 @@ char *wordprocess(char *token)
             i--;
         }
     }
-    if (strlen(word) == 0)
-        return NULL;
     return word;
 }
 
@@ -158,4 +182,12 @@ void swap(char *v[], int i, int j)
     tmp = v[i];
     v[i] = v[j];
     v[j] = tmp;
+}
+
+void wordfree(char **wordptr, int nwords)
+{
+    int i;
+    
+    for (i = 0; i < nwords; i++)
+        free(wordptr[i]);
 }
