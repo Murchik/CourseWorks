@@ -4,19 +4,22 @@
 #include <ctype.h>
 #include <locale.h>
 
-#define MAXWORDS 5000
-#define MAXLEN 1024
-
-char *wordptr[MAXWORDS];
+#define MAXWORDS 1000
+#define MAXLEN 256
 
 int readlen();
-int readwords(const char *fileName, char *wordptr[], int len, int nlines);
+int readwords(const char *fileName, char *wordptr[], int len, int maxwords);
 char *wordprocess(char *word);
 int comp(const char *word1, const char *word2);
 void swap(char *v[], int i, int j);
-void sort(char *v[], int left, int right);
+void bubblesort(char **wordptr,
+                int nwords,
+                int (*comp)(const char *, const char *));
 void writelines(char *wordptr[], int nlines);
 void wordfree(char **wordptr, int nwords);
+
+char *wordptr[MAXWORDS];
+
 
 int main()
 {
@@ -29,16 +32,25 @@ int main()
     if (lenword > 0)
         if ((nwords = readwords("file.txt", wordptr, lenword, MAXWORDS)) > 0)
         {
-            sort(wordptr, 0, nwords - 1);
+            printf("В файле найдено %d подходящих слов.\n", nwords);
+            bubblesort(wordptr, nwords, comp);
+            printf("\nОтсортированные слова:\n");
             writelines(wordptr, nwords);
             wordfree(wordptr, nwords);
         }
+        else if (nwords == 0)
+            printf("Ошибка: соответствующих слов не найдено.\n");
+        else if (nwords == -1)
+            printf("Ошибка: файл с названием \"file.txt\" не найден.\n");
+        else if (nwords == -2)
+            printf("Ошибка: в файле слишком много слов для сортировки.\n");
         else
-            printf("error: no matching words found\n");
+            printf("Произошла неизвестная ошибка.\n");
     else
-        printf("error: invalid length\n");
+        printf("Ошибка: некорректное значение длины.\n");
     return 0;
 }
+
 
 int readlen()
 {
@@ -93,7 +105,7 @@ char *wordprocess(char *token)
     int len;
     int inword;
     char *word;
-    
+
     len = strlen(token);
     word = (char *)malloc(len + 1);
     if (word == NULL)
@@ -105,7 +117,7 @@ char *wordprocess(char *token)
     {
         if (inword == 0 && isalpha(word[i]))
             inword = 1;
-        else if (inword == 1 && !isalpha(word[i]) && !isalpha(word[i + 1]))
+        else if (inword == 1 && !isalpha(word[i]) && (word[i] != '-'))
             inword = 0;
         if (!inword && (ispunct(word[i]) || iscntrl(word[i])))
         {
@@ -124,7 +136,7 @@ void writelines(char *wordptr[], int nlines)
     int i;
 
     for (i = 0; i < nlines; ++i)
-        printf("%s\n", wordptr[i]);
+        printf(" %s\n", wordptr[i]);
 }
 
 int comp(const char *word1, const char *word2)
@@ -156,24 +168,6 @@ int comp(const char *word1, const char *word2)
     return 0;
 }
 
-void sort(char *v[], int left, int right)
-{
-    int i, last;
-
-    if (left >= right)
-        return;
-    swap(v, left, (left + right) / 2);
-    last = left;
-    for (i = left + 1; i <= right; ++i)
-    {
-        if (comp(v[i], v[left]) < 0)
-            swap(v, ++last, i);
-    }
-    swap(v, left, last);
-    sort(v, left, last - 1);
-    sort(v, last + 1, right);
-}
-
 void swap(char *v[], int i, int j)
 {
     char *tmp;
@@ -186,7 +180,28 @@ void swap(char *v[], int i, int j)
 void wordfree(char **wordptr, int nwords)
 {
     int i;
-    
+
     for (i = 0; i < nwords; i++)
         free(wordptr[i]);
+}
+
+void bubblesort(char **wordptr,
+                int nwords,
+                int (*comp)(const char *, const char *))
+{
+    int i, j;
+    int flag;
+
+    for (i = 0; i < nwords; i++)
+    {
+        flag = 1;
+        for (j = 0; j < nwords - (i + 1); j++)
+            if (comp(wordptr[j], wordptr[j + 1]) > 0)
+            {
+                flag = 0;
+                swap(wordptr, j, j + 1);
+            }
+        if (flag)
+            break;
+    }
 }
