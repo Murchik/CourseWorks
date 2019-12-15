@@ -4,42 +4,33 @@
 #include <ctype.h>
 #include <locale.h>
 
-#define MAXWORDS 1000
 #define MAXLEN 256
 
-int readwords(const char *fileName, char *wordptr[], int len, int maxwords);
+char **readwords(const char *fileName, int *nwords, int len);
 char *wordprocess(char *word);
-int comp(const char *word1, const char *word2);
-void swap(char *v[], int i, int j);
 void bubblesort(char **wordptr,
                 int nwords,
                 int (*comp)(const char *, const char *));
+int comp(const char *word1, const char *word2);
 void writelines(char *wordptr[], int nlines);
 void wordfree(char **wordptr, int nwords);
-
-// Массив для хранения запомненных слов
-char *wordptr[MAXWORDS];
-
 
 int main()
 {
     setlocale(LC_ALL, "RUS");
+    char **wordptr = NULL;
     int nwords;
     int lenword;
 
     printf("Введите длину слов: ");
-    // Считывание длины слов - n
     scanf("%i", &lenword);
 
     if (lenword > 0 && lenword <= MAXLEN)
-        // Считывание из файла слов длинной n
-        if ((nwords = readwords("file.txt", wordptr, lenword, MAXWORDS)) > 0)
+        if ((wordptr = readwords("file.txt", &nwords, lenword)) != NULL)
         {
             printf("Найдено подходящих слов в файле: %d.\n", nwords);
-            // Сортировка считанных слов
             bubblesort(wordptr, nwords, comp);
             printf("\nОтсортированные слова:\n");
-            // Печать отсортированных слов
             writelines(wordptr, nwords);
             wordfree(wordptr, nwords);
         }
@@ -48,7 +39,9 @@ int main()
         else if (nwords == -1)
             printf("Ошибка: файл с названием \"file.txt\" не найден.\n");
         else if (nwords == -2)
-            printf("Ошибка: в файле слишком много слов для сортировки.\n");
+            printf("Ошибка: количество считанных слов слишком велико.\n");
+        else if (nwords == -3)
+            printf("Произошла ошибка чтения фалйа \"file.txt\".\n");
         else
             printf("Произошла неизвестная ошибка.\n");
     else
@@ -56,78 +49,91 @@ int main()
     return 0;
 }
 
-int readwords(const char *fileName, char *wordptr[], int len, int maxwords)
+char **readwords(const char *fileName, int *nwordsArr, int len)
 {
     FILE *ptrFile;
-    int nwords;
+    char **wordptr;
+    int numw;
     char *word, *token, line[MAXLEN];
 
     if ((ptrFile = fopen(fileName, "rt")) == NULL)
-        return -1;
+    {
+        *nwordsArr = -1;
+        return NULL;
+    }
 
-    nwords = 0;
+    wordptr = NULL;
+    numw = 0;
     while (fgets(line, MAXLEN, ptrFile) != NULL)
     {
-        // Выделяем лексему из строки
         token = strtok(line, " ");
         while (token != NULL)
         {
-            if (nwords >= maxwords)
-                return -2;
-            else
-            {
-                // Избавляем лексему от знаков препинания
-                word = wordprocess(token);
-                if (strlen(word) != len)
+            word = wordprocess(token);
+            if (word != NULL)
+                if (strlen(word) == len)
+                {
+                    numw++;
+                    wordptr = (char **)realloc(wordptr, sizeof(char *) * numw);
+                    if (wordptr != NULL)
+                        wordptr[numw - 1] = word;
+                    else
+                    {
+                        wordfree(wordptr, numw);
+                        *nwordsArr = -2;
+                        return NULL;
+                    }
+                }
+                else
                 {
                     free(word);
                     word = NULL;
                 }
-                if (word != NULL)
-                    wordptr[nwords++] = word;
-            }
-            // Выделяем следующую лексему из строки
             token = strtok(NULL, " ");
         }
     }
+    if (ferror(ptrFile))
+    {
+        *nwordsArr = -3;
+        return NULL;
+    }
     fclose(ptrFile);
-    return nwords;
+    *nwordsArr = numw;
+    return wordptr;
 }
 
 char *wordprocess(char *token)
 {
-    int i, j;
-    int len;
     char *word;
+    int ch;
+    int len;
+    int i;
 
     len = strlen(token);
-    word = (char *)malloc(len + 1);
-    if (word == NULL)
-        return NULL;
-    strcpy(word, token);
-
-    for (i = 0; word[i] != '\0'; i++)
+    ch = (unsigned char)token[0];
+    while (!isalpha(ch) && len > 0)
     {
-        if (ispunct(word[i]) || iscntrl(word[i]))
-        {
-            // Удаление i-того символа из строки (из слова)
-            for (j = i; j < len - 1; j++)
-                word[j] = word[j + 1];
-            len--;
-            word[len] = '\0';
-            i--;
-        }
+        token++;
+        len--;
+        ch = (unsigned char)token[0];
     }
+
+    ch = (unsigned char)token[len - 1];
+    while (!isalpha(ch))
+    {
+        len--;
+        ch = (unsigned char)token[len - 1];
+    }
+
+    word = (char *)malloc(len + 1);
+    if (word != NULL)
+    {
+        for (i = 0; i < len; ++i)
+            word[i] = token[i];
+        word[len] = '\0';
+    }
+
     return word;
-}
-
-void swap(char *v[], int i, int j)
-{
-    char *tmp;
-
-    tmp = v[i];
-    v[i] = v[j];
-    v[j] = tmp;
 }
 
 int comp(const char *word1, const char *word2)
@@ -135,28 +141,24 @@ int comp(const char *word1, const char *word2)
     int ch1, ch2;
     int i;
 
-    for (i = 0; word1[i] != '\0' && word2[i] != '\0'; i++)
+    for (i = 0; word1[i] != '\0' && word2[i] != '\0'; ++i)
     {
-        if (isupper(word1[i]))
-            ch1 = word1[i] - 'A';
-        else if (islower(word1[i]))
-            ch1 = word1[i] - 'a';
-        else
-            ch1 = word1[i];
-
-        if (isupper(word2[i]))
-            ch2 = word2[i] - 'A';
-        else if (islower(word2[i]))
-            ch2 = word2[i] - 'a';
-        else
-            ch2 = word2[i];
-
+        ch1 = (unsigned char)word1[i];
+        ch2 = (unsigned char)word2[i];
+        ch1 = tolower(ch1);
+        ch2 = tolower(ch2);
         if (ch1 > ch2)
             return 1;
         else if (ch1 < ch2)
             return -1;
     }
-    return 0;
+
+    if (word1[i] == '\0' && word2[i] == '\0')
+        return 0;
+    else if (word1[i] == '\0')
+        return -1;
+    else
+        return 1;
 }
 
 void bubblesort(char **wordptr,
@@ -165,6 +167,7 @@ void bubblesort(char **wordptr,
 {
     int i, j;
     int flag;
+    char *tmp;
 
     for (i = 0; i < nwords; i++)
     {
@@ -173,14 +176,16 @@ void bubblesort(char **wordptr,
             if (comp(wordptr[j], wordptr[j + 1]) > 0)
             {
                 flag = 0;
-                swap(wordptr, j, j + 1);
+                tmp = wordptr[j];
+                wordptr[j] = wordptr[j + 1];
+                wordptr[j + 1] = tmp;
             }
         if (flag)
             break;
     }
 }
 
-void writelines(char *wordptr[], int nlines)
+void writelines(char **wordptr, int nlines)
 {
     int i;
 
