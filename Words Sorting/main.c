@@ -4,15 +4,13 @@
 #include <ctype.h>
 #include <locale.h>
 
-#define MAXLEN 256
-
 char **readwords(const char *fileName, int *nwords, int len);
 char *wordprocess(char *word);
 void bubblesort(char **wordptr,
                 int nwords,
                 int (*comp)(const char *, const char *));
 int comp(const char *word1, const char *word2);
-void writelines(char *wordptr[], int nlines);
+void writelines(char **wordptr, int nlines);
 void wordfree(char **wordptr, int nwords);
 
 int main()
@@ -25,11 +23,12 @@ int main()
     printf("Введите длину слов: ");
     scanf("%i", &lenword);
 
-    if (lenword > 0 && lenword <= MAXLEN)
+    if (lenword > 0)
+    {
         if ((wordptr = readwords("file.txt", &nwords, lenword)) != NULL)
         {
-            printf("Найдено подходящих слов в файле: %d.\n", nwords);
             bubblesort(wordptr, nwords, comp);
+            printf("Найдено подходящих слов в файле: %d.\n", nwords);
             printf("\nОтсортированные слова:\n");
             writelines(wordptr, nwords);
             wordfree(wordptr, nwords);
@@ -37,34 +36,35 @@ int main()
         else if (nwords == 0)
             printf("Cоответствующих слов не найдено.\n");
         else if (nwords == -1)
-            printf("Ошибка: файл с названием \"file.txt\" не найден.\n");
+            printf("Ошибка: не удалось открыть входной файл \"file.txt\".\n");
         else if (nwords == -2)
             printf("Ошибка: количество считанных слов слишком велико.\n");
         else if (nwords == -3)
-            printf("Произошла ошибка чтения фалйа \"file.txt\".\n");
+            printf("Произошла ошибка при чтении файла.\n");
         else
             printf("Произошла неизвестная ошибка.\n");
+    }
     else
         printf("Ошибка: некорректное значение длины.\n");
     return 0;
 }
 
-char **readwords(const char *fileName, int *nwordsArr, int len)
+char **readwords(const char *fileName, int *nwords, int len)
 {
     FILE *ptrFile;
     char **wordptr;
     int numw;
-    char *word, *token, line[MAXLEN];
+    char *word, *token, line[256];
 
     if ((ptrFile = fopen(fileName, "rt")) == NULL)
     {
-        *nwordsArr = -1;
+        *nwords = -1;
         return NULL;
     }
 
     wordptr = NULL;
     numw = 0;
-    while (fgets(line, MAXLEN, ptrFile) != NULL)
+    while (fgets(line, 256, ptrFile) != NULL)
     {
         token = strtok(line, " ");
         while (token != NULL)
@@ -80,7 +80,7 @@ char **readwords(const char *fileName, int *nwordsArr, int len)
                     else
                     {
                         wordfree(wordptr, numw);
-                        *nwordsArr = -2;
+                        *nwords = -2;
                         return NULL;
                     }
                 }
@@ -92,13 +92,14 @@ char **readwords(const char *fileName, int *nwordsArr, int len)
             token = strtok(NULL, " ");
         }
     }
-    if (ferror(ptrFile))
+    if (!feof(ptrFile))
     {
-        *nwordsArr = -3;
+        wordfree(wordptr, numw);
+        *nwords = -3;
         return NULL;
     }
     fclose(ptrFile);
-    *nwordsArr = numw;
+    *nwords = numw;
     return wordptr;
 }
 
@@ -119,7 +120,7 @@ char *wordprocess(char *token)
     }
 
     ch = (unsigned char)token[len - 1];
-    while (!isalpha(ch))
+    while (!isalpha(ch) && len > 0)
     {
         len--;
         ch = (unsigned char)token[len - 1];
